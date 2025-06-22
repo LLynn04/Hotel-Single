@@ -1,5 +1,23 @@
 import { useState, useEffect } from 'react';
 
+interface RoomType {
+  id: number;
+  name: string;
+  // Add other room type properties if needed
+}
+
+interface Room {
+  id: number;
+  room_number: string;
+  desc: string;
+  room_image: string;
+  is_active: boolean;
+  room_type: RoomType;
+  images: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 interface RoomCategory {
   id: number;
   name: string;
@@ -22,8 +40,24 @@ const Categories = () => {
         }
         
         const dataJson = await response.json();
-        // console.log('Fetched data:', dataJson); // Debug log to see API response structure
-        setRoomCategories(dataJson.data);
+        console.log('Fetched data:', dataJson);
+        
+        // Extract unique room types from the rooms data
+        const rooms = dataJson.data;
+        const uniqueTypes = rooms.reduce((acc: RoomCategory[], room: any) => {
+          // Check if this room type already exists
+          const existingType = acc.find(item => item.id === room.room_type.id);
+          if (!existingType) {
+            acc.push({
+              id: room.room_type.id,
+              name: room.room_type.type, // "Single Room", "Twin Room", etc.
+              image: room.room_image
+            });
+          }
+          return acc;
+        }, []);
+        
+        setRoomCategories(uniqueTypes);
       } catch (error) {
         console.error('Error fetching room categories:', error);
       } finally {
