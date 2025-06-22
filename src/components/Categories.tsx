@@ -1,83 +1,70 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 interface RoomType {
   id: number;
-  name: string;
-  // Add other room type properties if needed
+  type: string;
+  price: number;
+  capacity: number;
+  image?: string;
 }
 
 interface Room {
-  id: number;
-  room_number: string;
-  desc: string;
+  room_type: Omit<RoomType, "image">;
   room_image: string;
-  is_active: boolean;
-  room_type: RoomType;
-  images: string[];
-  created_at: string;
-  updated_at: string;
-}
-
-interface RoomCategory {
-  id: number;
-  name: string;
-  image: string;
 }
 
 const Categories = () => {
   const url = "https://api-hotel-production-ee3e.up.railway.app/api/rooms";
-  const [roomCategories, setRoomCategories] = useState<RoomCategory[]>([]);
+  const [roomCategories, setRoomCategories] = useState<RoomType[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRoomType = async () => {
+    const fetchDataTyperoom = async () => {
       try {
         setLoading(true);
-        const response = await fetch(url); // Fixed typo: respones -> response
-        
+        const response = await fetch(url);
+
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`${response.status}`);
         }
-        
+
         const dataJson = await response.json();
-        console.log('Fetched data:', dataJson);
-        
-        // Extract unique room types from the rooms data
-        const rooms = dataJson.data;
-        const uniqueTypes = rooms.reduce((acc: RoomCategory[], room: any) => {
-          // Check if this room type already exists
-          const existingType = acc.find(item => item.id === room.room_type.id);
-          if (!existingType) {
-            acc.push({
-              id: room.room_type.id,
-              name: room.room_type.type, // "Single Room", "Twin Room", etc.
-              image: room.room_image
+        const rooms: Room[] = dataJson.data;
+
+        const uniqueRoomType: RoomType[] = [];
+        const seenId = new Set();
+
+        for (const room of rooms) {
+          const roomType = room.room_type;
+          if (!seenId.has(roomType.id)) {
+            seenId.add(roomType.id);
+            uniqueRoomType.push({
+              id: roomType.id,
+              type: roomType.type,
+              price: roomType.price,
+              capacity: roomType.capacity,
+              image: room.room_image,
             });
           }
-          return acc;
-        }, []);
-        
-        setRoomCategories(uniqueTypes);
+        }
+        setRoomCategories(uniqueRoomType)
       } catch (error) {
-        console.error('Error fetching room categories:', error);
+        console.log(error)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
     };
-    fetchRoomType();
+    fetchDataTyperoom();
   }, []);
 
-  const handleCategoryClick = (category: RoomCategory) => {
-    console.log(`Selected category: ${category.name}`);
-    // Add your navigation/filter logic here
+  const handleCategoryClick = (category: RoomType) => {
+    console.log(`Selected category: ${category.type}`);
   };
 
   if (loading) {
     return (
-      <div className="py-16">
-        <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-        </div>
+      <div className="py-16 flex justify-center items-center h-32">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
       </div>
     );
   }
@@ -100,7 +87,7 @@ const Categories = () => {
               <div className="relative h-32 overflow-hidden">
                 <img
                   src={category.image}
-                  alt={category.name}
+                  alt={category.type}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -109,13 +96,13 @@ const Categories = () => {
               {/* Content */}
               <div className="p-3">
                 <h3 className="text-sm font-semibold text-gray-800 group-hover:text-purple-600 transition-colors duration-300">
-                  {category.name}
+                  {category.type}
                 </h3>
               </div>
 
-              {/* Hover Effect Border */}
+              {/* Hover Border */}
               <div className="absolute inset-0 border-2 border-transparent group-hover:border-purple-400 rounded-2xl transition-colors duration-300"></div>
-              
+
               {/* Click Indicator */}
               <div className="absolute top-4 right-4 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <svg
