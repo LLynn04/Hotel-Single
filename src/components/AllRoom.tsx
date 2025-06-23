@@ -91,9 +91,22 @@ const AllRoom: React.FC = () => {
           <p className="text-center text-gray-500">Loading rooms...</p>
         ) : (
           <div className="overflow-x-auto">
-            <div className="flex gap-6 pb-2 scroll-smooth no-scrollbar">
+            <div
+              className="flex gap-6 pb-2 scroll-smooth overflow-x-auto"
+              style={{
+                msOverflowStyle: "none",
+                scrollbarWidth: "none",
+              }}
+              onWheel={(e) => {
+                e.currentTarget.scrollLeft += e.deltaY;
+              }}
+            >
               {rooms.map((room) => (
-                <AllRoomCard key={room.id} room={room} onClick={()=> handleRoomClick(room)} />
+                <AllRoomCard
+                  key={room.id}
+                  room={room}
+                  onClick={() => handleRoomClick(room)}
+                />
               ))}
             </div>
           </div>

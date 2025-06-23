@@ -1,132 +1,204 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+
+interface RoomAPI {
+  id: number;
+  room_number: string;
+  desc: string;
+  room_image: string;
+  is_active: boolean;
+  room_type: {
+    id: number;
+    type: string;
+    price: number;
+    capacity: number;
+  };
+  images: string[];
+  created_at: string;
+  updated_at: string;
+}
 
 interface Room {
   id: string;
   name: string;
+  description: string;
   price: number;
   image: string;
-  availability: 'available' | 'occupied' | 'maintenance';
+  availability: "available" | "occupied" | "maintenance";
   type: string;
 }
 
-// Utility: parse URL query params into an object
-function useQuery() {
-  return new URLSearchParams(useLocation().search);
-}
-
 const RoomFilter: React.FC = () => {
-  const navigate = useNavigate();
-  const query = useQuery();
+  const [filters, setFilters] = useState({
+    type: "all",
+    bed: "any",
+    guest: "any",
+    wifi: false,
+    breakfast: false,
+    parking: false,
+  });
+  const [loading, setLoading] = useState(true);
+  const [RoomFilter, setRoomFilter] = useState<Room[]>([]);
+  const url = 'https://api-hotel-production-ee3e.up.railway.app/api/rooms';
 
-  const [rooms, setRooms] = useState<Room[]>([]); // all rooms fetched
-  const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
-
-  // Filters state
-  const [filterType, setFilterType] = useState<string>(query.get('type') || '');
-  const [filterAvailability, setFilterAvailability] = useState<string>(query.get('availability') || '');
-
-  // Fetch rooms once
   useEffect(() => {
-    // Replace with your actual fetch logic
-    async function fetchRooms() {
-      const res = await fetch('https://api-hotel-production-ee3e.up.railway.app/api/rooms');
-      const json = await res.json();
+    const FetchFilterRoom = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(url);
 
-      const mappedRooms: Room[] = json.data.map((item: any) => ({
-        id: item.id.toString(),
-        name: item.room_number,
-        price: item.room_type?.price || 0,
-        image: item.room_image,
-        availability: item.is_active ? 'available' : 'maintenance',
-        type: item.room_type?.type || '',
-      }));
-      setRooms(mappedRooms);
+        if (!response.ok) {
+          throw new Error (`${response.status}`)
+        }
+
+        const dataJson = await response.json();
+        const data: RoomAPI[] = dataJson.data;
+
+        const mappedFilter: Room[] = data.map((showRoom) => ({
+          id: showRoom.id.toString(),
+          name: showRoom.room_number,
+          description: showRoom.desc,
+          price: showRoom.room_type.price,
+          image: showRoom.room_image,
+          availability: showRoom.is_active ? "available" : "maintenance",
+          type: showRoom.room_type.type,
+        }))
+
+        setRoomFilter(mappedFilter)
+
+      } catch (error) {
+        console.log(error)
+      } finally {
+        setLoading(false)
+      }
     }
+    FetchFilterRoom();
+  },[])
 
-    fetchRooms();
-  }, []);
+  if (loading) {
+    return (
+      <div className="py-16 flex justify-center items-center h-32">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
 
-  // Filter rooms whenever filters or rooms change
-  useEffect(() => {
-    let filtered = rooms;
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value, type } = e.target;
 
-    if (filterType) {
-      filtered = filtered.filter((r) => r.type === filterType);
-    }
+    const newValue =
+      type === "checkbox" ? (e.target as HTMLInputElement).checked : value;
 
-    if (filterAvailability) {
-      filtered = filtered.filter((r) => r.availability === filterAvailability);
-    }
-
-    setFilteredRooms(filtered);
-  }, [rooms, filterType, filterAvailability]);
-
-  // Update URL query params when filters change
-  useEffect(() => {
-    const params = new URLSearchParams();
-
-    if (filterType) params.set('type', filterType);
-    if (filterAvailability) params.set('availability', filterAvailability);
-
-    navigate({ pathname: '/rooms', search: params.toString() }, { replace: true });
-  }, [filterType, filterAvailability, navigate]);
+    setFilters({
+      ...filters,
+      [name]: newValue,
+    });
+  };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Filters sidebar */}
-      <aside className="w-64 bg-gray-100 p-4 shadow-md">
-        <h2 className="font-bold mb-4">Filters</h2>
+    <div className="flex flex-col md:flex-row min-h-screen p-4 gap-4">
+      {/* Filter Section */}
+      <div className="md:w-1/4 bg-white shadow rounded-lg p-4 space-y-4">
+        <h2 className="text-xl font-semibold mb-2">Filter Rooms</h2>
 
-        <div className="mb-6">
-          <label className="block font-semibold mb-1">Room Type</label>
+        <div>
+          <label className="block text-sm font-medium mb-1">Room Type</label>
           <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="w-full p-2 border rounded"
+            name="type"
+            value={filters.type}
+            onChange={handleChange}
+            className="w-full p-2 border rounded-lg"
           >
-            <option value="">All</option>
-            <option value="Single Room">Single Room</option>
-            <option value="Deluxe">Deluxe</option>
-            <option value="Suite">Suite</option>
-            {/* Add more types as needed */}
+            <option value="all">All</option>
+            <option value="single">Single</option>
+            <option value="double">Double</option>
+            <option value="suite">Suite</option>
           </select>
         </div>
 
         <div>
-          <label className="block font-semibold mb-1">Availability</label>
+          <label className="block text-sm font-medium mb-1">Bed Type</label>
           <select
-            value={filterAvailability}
-            onChange={(e) => setFilterAvailability(e.target.value)}
-            className="w-full p-2 border rounded"
+            name="bed"
+            value={filters.bed}
+            onChange={handleChange}
+            className="w-full p-2 border rounded-lg"
           >
-            <option value="">All</option>
-            <option value="available">Available</option>
-            <option value="occupied">Occupied</option>
-            <option value="maintenance">Maintenance</option>
+            <option value="any">Any</option>
+            <option value="king">King</option>
+            <option value="queen">Queen</option>
+            <option value="twin">Twin</option>
           </select>
         </div>
-      </aside>
 
-      {/* Rooms list */}
-      <main className="flex-1 p-6 bg-white overflow-auto">
-        {filteredRooms.length === 0 ? (
-          <p>No rooms found with current filters.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRooms.map((room) => (
-              <div key={room.id} className="border rounded shadow overflow-hidden">
-                <img src={room.image} alt={room.name} className="w-full h-48 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-bold text-lg">{room.name}</h3>
-                  <p className="text-gray-600">${room.price}</p>
-                  <p className="text-sm text-gray-500 capitalize">{room.availability}</p>
-                </div>
-              </div>
-            ))}
+        <div>
+          <label className="block text-sm font-medium mb-1">Guests</label>
+          <select
+            name="guest"
+            value={filters.guest}
+            onChange={handleChange}
+            className="w-full p-2 border rounded-lg"
+          >
+            <option value="any">Any</option>
+            <option value="1">1 Guest</option>
+            <option value="2">2 Guests</option>
+            <option value="3">3 Guests</option>
+            <option value="4+">4+ Guests</option>
+          </select>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            name="wifi"
+            checked={filters.wifi}
+            onChange={handleChange}
+          />
+          <label>Free Wi-Fi</label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            name="breakfast"
+            checked={filters.breakfast}
+            onChange={handleChange}
+          />
+          <label>Breakfast Included</label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            name="parking"
+            checked={filters.parking}
+            onChange={handleChange}
+          />
+          <label>Parking</label>
+        </div>
+      </div>
+
+      {/* Room Display Section */}
+      <div className="md:w-3/4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {RoomFilter.map((room) => (
+          <div
+            key={room.id}
+            className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200"
+          >
+            <div className="h-40 bg-gray-200 flex items-center justify-center text-gray-500">
+              <img src={room.image} alt={room.type} />
+            </div>
+            <div className="p-4 space-y-2">
+              <h3 className="text-lg font-semibold">{room.name}</h3>
+              <p className="text-sm text-gray-600">{room.description}</p>
+              <button className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                View Details
+              </button>
+            </div>
           </div>
-        )}
-      </main>
+        ))}
+      </div>
     </div>
   );
 };
