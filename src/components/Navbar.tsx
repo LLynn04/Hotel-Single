@@ -40,10 +40,10 @@ const Navbar = () => {
 
           {/* Action Buttons - Desktop */}
           <div className="hidden md:flex items-center space-x-4">
-            <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 font-medium transition-all duration-300 hover:scale-105">
+            <a href='/sign-in' className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-blue-600 font-medium transition-all duration-300 hover:scale-105">
               <User size={18} />
               <span>Sign In</span>
-            </button>
+            </a>
             <button className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
               <Calendar size={18} />
               <span>Book Now</span>
@@ -82,10 +82,10 @@ const Navbar = () => {
             
             {/* Mobile Action Buttons */}
             <div className="pt-4 border-t border-gray-200 space-y-3">
-              <button className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-all duration-200">
+              <a href='/sign-in' className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-all duration-200">
                 <User size={18} />
                 <span>Sign In</span>
-              </button>
+              </a>
               <button className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold shadow-lg transform hover:scale-105 transition-all duration-300">
                 <Calendar size={18} />
                 <span>Book Now</span>
