@@ -5,6 +5,7 @@ import Homepage from "./Pages/Homepage";
 import SignIn from "./Pages/Auth/SignIn";
 import SignUp from "./Pages/Auth/SignUp";
 import RoomFilter from "./components/RoomFilter";
+import DashboardView from "./Pages/Admin/DashboardView";
 
 const App = () => {
   return (
@@ -16,8 +17,11 @@ const App = () => {
             <Route path="/rooms" element={<RoomFilter />} />
           </Route>
 
-          <Route path="sign-in" element={<SignIn />}/>
-          <Route path="sign-up" element={<SignUp />}/>
+          <Route path="sign-in" element={<SignIn />} />
+          <Route path="sign-up" element={<SignUp />} />
+
+          <Route path="admin" element={<DashboardView />}>
+          </Route>
         </Routes>
       </BrowserRouter>
     </div>
