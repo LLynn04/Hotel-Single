@@ -3,6 +3,7 @@ import Banner from "../components/Banner";
 import DateRangePicker from "../components/DateRangePicker";
 import Categories from "../components/Categories";
 import AllRoom from "../components/AllRoom";
+import Service from "../components/Service";
 
 const Homepage = () => {
   return (
@@ -26,6 +27,11 @@ const Homepage = () => {
         {/* all rooms */}
         <section>
           <AllRoom />
+        </section>
+
+        {/* services */}
+        <section>
+          <Service /> 
         </section>
       </div>
     </>

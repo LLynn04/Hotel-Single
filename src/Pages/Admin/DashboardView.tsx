@@ -1,4 +1,5 @@
 import AddRoom from "./pages/AddRoom";
+import AddService from "./pages/AddService";
 import { useState } from "react";
 
 const DashboardView = () => {
@@ -7,15 +8,15 @@ const DashboardView = () => {
     const menuItems = [
         { name: "Dashboard", icon: <i className="fas fa-tachometer-alt"></i> },
         { name: "Add Room", icon: <i className="fas fa-plus"></i> },
-        { name: "Users", icon: <i className="fas fa-users"></i> },
+        { name: "Add Service", icon: <i className="fas fa-users"></i> },
     ];
 
   const renderContent = () => {
     switch (active) {
       case "Add Room":
         return <AddRoom />;
-      case "Users":
-        return <div>Users Page</div>;
+      case "Add Service":
+        return <AddService />;
       case "Dashboard":
       default:
         return <div>Dashboard Content</div>;
