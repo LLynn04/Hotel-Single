@@ -32,6 +32,12 @@ const SignIn: React.FC = () => {
 
       const data = await res.json();
 
+      // Debug: Log the entire response to see what we're getting
+      console.log('Login response data:', data);
+      console.log('User object:', data.user);
+      console.log('User object keys:', Object.keys(data.user));
+      console.log('Full user object stringified:', JSON.stringify(data.user, null, 2));
+
       if (res.ok && data.access_token) {
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('role', data.user.role);
@@ -42,24 +48,40 @@ const SignIn: React.FC = () => {
           return;
         }
 
-        // For normal users: check email verification
-        if (data.user.email_verified_at) {
+        // For normal users: check email verification status
+        const isVerified = data.user.email_verified_at || data.user.is_verified;
+
+        console.log('Verification check results:');
+        console.log('email_verified_at:', data.user.email_verified_at);
+        console.log('is_verified:', data.user.is_verified);
+        console.log('Final isVerified:', isVerified);
+
+        if (isVerified) {
+          console.log('User is verified, redirecting to homepage');
+          localStorage.removeItem('pendingVerificationEmail');
           navigate('/');
         } else {
+          console.log('User is NOT verified, redirecting to verify-notice');
           localStorage.setItem('pendingVerificationEmail', form.email);
           navigate('/verify-notice');
         }
       } else if (data.message) {
         setError(data.message);
-        if (data.message.toLowerCase().includes('verify')) {
+        // Check for verification-related messages
+        const needsVerification = data.message.toLowerCase().includes('verify') ||
+                                data.message.toLowerCase().includes('unverified') ||
+                                data.message.toLowerCase().includes('confirm');
+        
+        if (needsVerification) {
           setShowResend(true);
           localStorage.setItem('pendingVerificationEmail', form.email);
         }
       } else {
         setError('Login failed. Please try again.');
       }
-    } catch {
-      setError('Incorrect email or password.');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Network error. Please check your connection and try again.');
     }
   };
 
@@ -80,7 +102,8 @@ const SignIn: React.FC = () => {
       } else {
         setError(data.message || 'Failed to resend verification email.');
       }
-    } catch {
+    } catch (err) {
+      console.error('Resend verification error:', err);
       setError('Network error when resending verification email.');
     }
   };
