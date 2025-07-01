@@ -1,4 +1,5 @@
-// import React from "react";
+// App.tsx
+
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import RootLayout from "./components/Layout/RootLayout";
 import Homepage from "./Pages/Homepage";
@@ -10,6 +11,7 @@ import AddRoom from "./Pages/Admin/pages/AddRoom";
 import AddService from "./Pages/Admin/pages/AddService";
 import VerifyNotice from "./Pages/Auth/VerifyNotice";
 import ResendVerification from "./Pages/Auth/ResendVerify";
+import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const App = () => {
   return (
@@ -21,15 +23,23 @@ const App = () => {
             <Route path="/rooms" element={<RoomFilter />} />
           </Route>
 
-          <Route path="sign-in" element={<SignIn />} />
-          <Route path="sign-up" element={<SignUp />} />
+          <Route path="/sign-in" element={<SignIn />} />
+          <Route path="/sign-up" element={<SignUp />} />
           <Route path="/verify-notice" element={<VerifyNotice />} />
           <Route path="/resend-verification" element={<ResendVerification />} />
 
-          <Route path="admin" element={<DashboardView />}>
+          {/* 🔒 Protected Admin Section */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <DashboardView />
+              </ProtectedRoute>
+            }
+          >
             <Route path="add-room" element={<AddRoom />} />
             <Route path="add-service" element={<AddService />} />
-            {/* Add more admin routes as needed */}
+            {/* More admin routes */}
           </Route>
         </Routes>
       </BrowserRouter>

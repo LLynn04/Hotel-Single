@@ -27,15 +27,19 @@ const SignUp: React.FC = () => {
         body: JSON.stringify(form),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        alert('Registered! Please check your email for verification.');
+        // Store email for potential resend verification usage
+        localStorage.setItem('pendingVerificationEmail', form.email);
+        // Redirect to verify notice page immediately, no alerts or checks
         navigate('/verify-notice');
       } else {
-        const data = await res.json();
         alert(data.message || 'Registration failed');
       }
-    } catch {
-      alert('Server error');
+    } catch (err) {
+      console.error('Registration error:', err);
+      alert('Server error. Please try again later.');
     }
   };
 

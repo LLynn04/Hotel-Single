@@ -35,17 +35,31 @@ const SignIn: React.FC = () => {
       if (res.ok && data.access_token) {
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('role', data.user.role);
-        navigate(data.user.role === 'admin' ? '/admin' : '/');
+
+        // Admin bypass verification, redirect immediately
+        if (data.user.role === 'admin') {
+          navigate('/admin');
+          return;
+        }
+
+        // For normal users: check email verification
+        if (data.user.email_verified_at) {
+          navigate('/');
+        } else {
+          localStorage.setItem('pendingVerificationEmail', form.email);
+          navigate('/verify-notice');
+        }
       } else if (data.message) {
         setError(data.message);
         if (data.message.toLowerCase().includes('verify')) {
           setShowResend(true);
+          localStorage.setItem('pendingVerificationEmail', form.email);
         }
       } else {
         setError('Login failed. Please try again.');
       }
     } catch {
-      setError('Server error. Please try later.');
+      setError('Incorrect email or password.');
     }
   };
 
@@ -124,12 +138,22 @@ const SignIn: React.FC = () => {
             <div className="mt-4 text-center text-red-400">
               <p>{error}</p>
               {showResend && (
-                <button
-                  onClick={handleResendVerification}
-                  className="mt-2 underline text-indigo-400 hover:text-indigo-600"
-                >
-                  Resend Verification Email
-                </button>
+                <>
+                  <button
+                    onClick={handleResendVerification}
+                    className="mt-2 underline text-indigo-400 hover:text-indigo-600"
+                  >
+                    Resend Verification Email
+                  </button>
+                  <div className="mt-2">
+                    <a
+                      href="/verify-notice"
+                      className="underline text-sm text-gray-300 hover:text-indigo-400"
+                    >
+                      Go to verification instructions
+                    </a>
+                  </div>
+                </>
               )}
             </div>
           )}
