@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Menu, X, User, Calendar } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Menu, X, User, Calendar } from "lucide-react";
+
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -7,16 +8,16 @@ const Navbar = () => {
 
   useEffect(() => {
     // Check if token exists in localStorage to determine logged-in state
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
   }, []);
 
   // Optionally, you can add a logout function to clear token and update state
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
     setIsLoggedIn(false);
-    window.location.href = '/sign-in'; // redirect to sign-in page
+    window.location.href = "/sign-in"; // redirect to sign-in page
   };
 
   return (
@@ -102,10 +103,13 @@ const Navbar = () => {
                 <span>Sign In</span>
               </a>
             )}
-            <button className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+            <a
+              href="/Booking"
+              className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold shadow-lg transform hover:scale-105 transition-all duration-300"
+            >
               <Calendar size={18} />
               <span>Book Now</span>
-            </button>
+            </a>
           </div>
 
           {/* Mobile menu button */}
@@ -121,7 +125,9 @@ const Navbar = () => {
         {/* Mobile Navigation */}
         <div
           className={`md:hidden transition-all duration-300 ease-in-out ${
-            menuOpen ? 'max-h-96 opacity-100 pb-6' : 'max-h-0 opacity-0 overflow-hidden'
+            menuOpen
+              ? "max-h-96 opacity-100 pb-6"
+              : "max-h-0 opacity-0 overflow-hidden"
           }`}
         >
           <div className="pt-4 space-y-3">
@@ -177,10 +183,13 @@ const Navbar = () => {
                   <span>Sign In</span>
                 </a>
               )}
-              <button className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold shadow-lg transform hover:scale-105 transition-all duration-300">
+              <a
+                href="/Booking"
+                className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold shadow-lg transform hover:scale-105 transition-all duration-300"
+              >
                 <Calendar size={18} />
                 <span>Book Now</span>
-              </button>
+              </a>
             </div>
           </div>
         </div>

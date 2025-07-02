@@ -12,6 +12,8 @@ import AddService from "./Pages/Admin/pages/AddService";
 import VerifyNotice from "./Pages/Auth/VerifyNotice";
 import ResendVerification from "./Pages/Auth/ResendVerify";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
+// import BookingComponent from "./components/Booking";
+import BookingComponent from "./Pages/Booking/Booking";
 
 const App = () => {
   return (
@@ -21,6 +23,7 @@ const App = () => {
           <Route path="/" element={<RootLayout />}>
             <Route index element={<Homepage />} />
             <Route path="/rooms" element={<RoomFilter />} />
+            <Route path="/booking" element={<BookingComponent />} />
           </Route>
 
           <Route path="/sign-in" element={<SignIn />} />
