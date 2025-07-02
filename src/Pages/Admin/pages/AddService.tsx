@@ -129,42 +129,46 @@ const AdminServiceCRUD: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem("token");
-      const url = editingService
-        ? `http://localhost:8000/api/services/${editingService.id}`
-        : "http://localhost:8000/api/services";
+  e.preventDefault();
+  try {
+    const token = localStorage.getItem("token");
+    const isEdit = !!editingService;
+    const url = isEdit
+      ? `http://localhost:8000/api/services/${editingService.id}`
+      : "http://localhost:8000/api/services";
 
-      const form = new FormData();
-      form.append("name", formData.name);
-      form.append("description", formData.description);
-      form.append("price", formData.price);
-      form.append("duration", String(formData.duration));
-      form.append("category", formData.category);
-      form.append("is_active", formData.is_active ? "1" : "0");
-      if (formData.image) form.append("image", formData.image);
+    const form = new FormData();
+    form.append("name", formData.name);
+    form.append("description", formData.description);
+    form.append("price", formData.price);
+    form.append("duration", String(formData.duration));
+    form.append("category", formData.category);
+    form.append("is_active", formData.is_active ? "1" : "0");
+    if (formData.image) form.append("image", formData.image);
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        body: form,
-      });
+    const res = await fetch(url, {
+      method: isEdit ? "POST" : "POST", // Laravel will reject PUT/PATCH with multipart/form-data
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        // Note: Do not set Content-Type header when using FormData — browser will do it automatically
+        "X-HTTP-Method-Override": isEdit ? "PUT" : "", // Laravel trick to spoof PUT
+      },
+      body: form,
+    });
 
-      const data = await res.json();
-      if (res.ok) {
-        await fetchServices();
-        resetForm();
-      } else {
-        setError(data.message || "Failed to save service");
-      }
-    } catch (err) {
-      setError("Failed to save service. Please try again.");
+    const data = await res.json();
+    if (res.ok) {
+      await fetchServices();
+      resetForm();
+    } else {
+      setError(data.message || "Failed to save service");
     }
-  };
+  } catch (err) {
+    setError("Failed to save service. Please try again.");
+  }
+};
+
 
   const handleEdit = (service: ServiceItem) => {
     setEditingService(service);

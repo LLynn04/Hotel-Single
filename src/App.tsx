@@ -14,6 +14,7 @@ import ResendVerification from "./Pages/Auth/ResendVerify";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 // import BookingComponent from "./components/Booking";
 import BookingComponent from "./Pages/Booking/Booking";
+// import ConfirmBooking from "./Pages/Booking/ConfirmBooking";
 
 const App = () => {
   return (
@@ -24,6 +25,28 @@ const App = () => {
             <Route index element={<Homepage />} />
             <Route path="/rooms" element={<RoomFilter />} />
             <Route path="/booking" element={<BookingComponent />} />
+            {/* <Route
+              path="/booking/confirm-booking"
+              element={
+                <ConfirmBooking
+                  initialBooking={{
+                    service_id: "",
+                    booking_date: "",
+                    booking_time: "",
+                    notes: "",
+                  }}
+                  initialService={{
+                    id: 0,
+                    name: "",
+                    description: "",
+                    duration: "",
+                    price: 0,
+                    created_at: "",
+                    updated_at: "",
+                  }}
+                />
+              }
+            /> */}
           </Route>
 
           <Route path="/sign-in" element={<SignIn />} />
@@ -35,7 +58,7 @@ const App = () => {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={["admin"]}>
                 <DashboardView />
               </ProtectedRoute>
             }
