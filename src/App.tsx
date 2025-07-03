@@ -15,6 +15,8 @@ import ProtectedRoute from "./components/Auth/ProtectedRoute";
 // import BookingComponent from "./components/Booking";
 import BookingComponent from "./Pages/Booking/Booking";
 // import ConfirmBooking from "./Pages/Booking/ConfirmBooking";
+import UserBookingHistory from "./Pages/Booking/History";
+// import History from "./Pages/Booking/History";
 
 const App = () => {
   return (
@@ -53,6 +55,9 @@ const App = () => {
           <Route path="/sign-up" element={<SignUp />} />
           <Route path="/verify-notice" element={<VerifyNotice />} />
           <Route path="/resend-verification" element={<ResendVerification />} />
+          <Route path="/booking-history" element={<UserBookingHistory />} />
+
+          {/* 🔒 Protected Routes */}
 
           {/* 🔒 Protected Admin Section */}
           <Route

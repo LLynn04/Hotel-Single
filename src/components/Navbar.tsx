@@ -81,7 +81,7 @@ const Navbar = () => {
                 {/* Simple dropdown example */}
                 <div className="absolute right-0 mt-2 w-40 bg-white rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-50">
                   <a
-                    href="/user/dashboard"
+                    href="/booking-history"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                   >
                     Dashboard
