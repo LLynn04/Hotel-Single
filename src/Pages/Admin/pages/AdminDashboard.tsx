@@ -128,6 +128,18 @@ const AdminDashboard = () => {
     type: "info",
   })
 
+  const [adminNotesModal, setAdminNotesModal] = useState<{
+    isOpen: boolean
+    bookingId: number | null
+    action: "approve" | "reject" | null
+    booking: Booking | null
+  }>({
+    isOpen: false,
+    bookingId: null,
+    action: null,
+    booking: null,
+  })
+
   const API_BASE_URL = "http://127.0.0.1:8000/api"
 
   const getAuthToken = () => {
@@ -236,57 +248,69 @@ const AdminDashboard = () => {
     fetchDashboardData()
   }, [])
 
-  const updateBookingStatus = async (bookingId: number, status: "approved" | "rejected") => {
-    const action = status === "approved" ? "approve" : "reject"
+  const showAdminNotesModal = (bookingId: number, action: "approve" | "reject") => {
     const booking = bookings.find((b) => b.id === bookingId)
+    setAdminNotesModal({
+      isOpen: true,
+      bookingId,
+      action,
+      booking: booking || null,
+    })
+  }
 
-    showConfirmModal(
-      `${action.charAt(0).toUpperCase() + action.slice(1)} Booking`,
-      `Are you sure you want to ${action} the booking for "${booking?.service.name}" by ${booking?.user.name}?`,
-      async () => {
-        try {
-          setProcessingBooking(bookingId)
-          const token = getAuthToken()
-          const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ status }),
-          })
+  const updateBookingStatus = async (bookingId: number, status: "approved" | "rejected", adminNotes?: string) => {
+    const action = status === "approved" ? "approve" : "reject"
+    // const booking = bookings.find((b) => b.id === bookingId)
 
-          const data = await response.json()
-          if (response.ok) {
-            // Update local state
-            setBookings((prev) => prev.map((booking) => (booking.id === bookingId ? { ...booking, status } : booking)))
+    try {
+      setProcessingBooking(bookingId)
+      const token = getAuthToken()
+      const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status,
+          admin_notes: adminNotes || `Booking ${status} by admin`,
+        }),
+      })
 
-            // Update stats
-            setStats((prev) => ({
-              ...prev,
-              pendingBookings: prev.pendingBookings - 1,
-              approvedBookings: status === "approved" ? prev.approvedBookings + 1 : prev.approvedBookings,
-            }))
+      const data = await response.json()
+      if (response.ok) {
+        // Update local state with admin notes
+        setBookings((prev) =>
+          prev.map((booking) =>
+            booking.id === bookingId
+              ? { ...booking, status, admin_notes: adminNotes || `Booking ${status} by admin` }
+              : booking,
+          ),
+        )
 
-            // Show success notification
-            showNotification("Success!", `Booking has been ${status} successfully!`, "success")
-            console.log(`✅ Booking ${bookingId} ${status}`)
-          } else {
-            console.error("Failed to update booking status:", data.message)
-            showNotification("Error", `Failed to ${action} booking: ${data.message}`, "error")
-            setError(`Failed to ${status} booking`)
-          }
-        } catch (err) {
-          console.error("Error updating booking status:", err)
-          showNotification("Network Error", `Network error occurred while trying to ${action} booking`, "error")
-          setError("Network error occurred")
-        } finally {
-          setProcessingBooking(null)
-        }
-      },
-      status === "rejected" ? "danger" : "warning",
-    )
+        // Update stats
+        setStats((prev) => ({
+          ...prev,
+          pendingBookings: prev.pendingBookings - 1,
+          approvedBookings: status === "approved" ? prev.approvedBookings + 1 : prev.approvedBookings,
+        }))
+
+        // Show success notification
+        showNotification("Success!", `Booking has been ${status} successfully!`, "success")
+        console.log(`✅ Booking ${bookingId} ${status}`)
+      } else {
+        console.error("Failed to update booking status:", data.message)
+        showNotification("Error", `Failed to ${action} booking: ${data.message}`, "error")
+        setError(`Failed to ${status} booking`)
+      }
+    } catch (err) {
+      console.error("Error updating booking status:", err)
+      showNotification("Network Error", `Network error occurred while trying to ${action} booking`, "error")
+      setError("Network error occurred")
+    } finally {
+      setProcessingBooking(null)
+    }
   }
 
   const markPaymentReceived = async (bookingId: number, amount: string) => {
@@ -548,7 +572,7 @@ const AdminDashboard = () => {
                         {booking.status === "pending" && (
                           <>
                             <button
-                              onClick={() => updateBookingStatus(booking.id, "approved")}
+                              onClick={() => showAdminNotesModal(booking.id, "approve")}
                               disabled={processingBooking === booking.id}
                               className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
@@ -562,7 +586,7 @@ const AdminDashboard = () => {
                               )}
                             </button>
                             <button
-                              onClick={() => updateBookingStatus(booking.id, "rejected")}
+                              onClick={() => showAdminNotesModal(booking.id, "reject")}
                               disabled={processingBooking === booking.id}
                               className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
@@ -628,6 +652,93 @@ const AdminDashboard = () => {
         type={notification.type}
         onClose={() => setNotification({ ...notification, isOpen: false })}
       />
+
+      {/* Admin Notes Modal */}
+      {adminNotesModal.isOpen && adminNotesModal.booking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${
+                    adminNotesModal.action === "approve" ? "bg-green-100" : "bg-red-100"
+                  }`}
+                >
+                  <span className="text-2xl">{adminNotesModal.action === "approve" ? "✅" : "❌"}</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {adminNotesModal.action === "approve" ? "Approve" : "Reject"} Booking
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {adminNotesModal.booking.service.name} - {adminNotesModal.booking.user.name}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Admin Notes (Optional)</label>
+                <textarea
+                  id="adminNotes"
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  placeholder={`Add a note about why you ${adminNotesModal.action === "approve" ? "approved" : "rejected"} this booking...`}
+                />
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Booking Details:</h4>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <p>
+                    <strong>Customer:</strong> {adminNotesModal.booking.user.name}
+                  </p>
+                  <p>
+                    <strong>Service:</strong> {adminNotesModal.booking.service.name}
+                  </p>
+                  <p>
+                    <strong>Date:</strong> {formatDate(adminNotesModal.booking.booking_date)}
+                  </p>
+                  <p>
+                    <strong>Time:</strong> {formatTime(adminNotesModal.booking.booking_time)}
+                  </p>
+                  <p>
+                    <strong>Amount:</strong> ${adminNotesModal.booking.total_amount}
+                  </p>
+                  {adminNotesModal.booking.notes && (
+                    <p>
+                      <strong>Customer Notes:</strong> {adminNotesModal.booking.notes}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex space-x-3 justify-end">
+                <button
+                  onClick={() => setAdminNotesModal({ isOpen: false, bookingId: null, action: null, booking: null })}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const adminNotes = (document.getElementById("adminNotes") as HTMLTextAreaElement)?.value || ""
+                    const status = adminNotesModal.action === "approve" ? "approved" : "rejected"
+                    updateBookingStatus(adminNotesModal.bookingId!, status as "approved" | "rejected", adminNotes)
+                    setAdminNotesModal({ isOpen: false, bookingId: null, action: null, booking: null })
+                  }}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                    adminNotesModal.action === "approve"
+                      ? "bg-green-600 hover:bg-green-700 focus:ring-green-500"
+                      : "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+                  }`}
+                >
+                  {adminNotesModal.action === "approve" ? "Approve Booking" : "Reject Booking"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

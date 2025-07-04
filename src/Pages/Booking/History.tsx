@@ -244,6 +244,27 @@ const UserBookingHistory = () => {
           </div>
         )}
 
+        {/* Back Button and Page Header */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => window.history.back()}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors group"
+            >
+              <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </div>
+              <span className="font-medium">Back</span>
+            </button>
+            <div className="text-right">
+              <h1 className="text-xl font-bold text-gray-900">My Booking History</h1>
+              <p className="text-sm text-gray-500">View and track your service bookings</p>
+            </div>
+          </div>
+        </div>
+
         {/* Booking Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
@@ -314,7 +335,21 @@ const UserBookingHistory = () => {
                 <span className="text-4xl text-gray-400">📅</span>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings yet</h3>
-              <p className="text-gray-500">You haven't made any bookings yet. Start by booking a service!</p>
+              <p className="text-gray-500 mb-6">You haven't made any bookings yet. Start by booking a service!</p>
+              <div className="flex justify-center space-x-3">
+                <button
+                  onClick={() => window.history.back()}
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  ← Go Back
+                </button>
+                <button
+                  onClick={() => (window.location.href = "/services")}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Browse Services
+                </button>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto">

@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Notification } from "../../components/CostumAlert"
+import { Edit3, Calendar, Clock, UserIcon, DollarSign, FileText, ArrowLeft } from "lucide-react"
 
 // Type definitions
 interface Service {
@@ -12,7 +13,7 @@ interface Service {
   duration?: string | number
   price?: number | string
   category?: string
-  image?: string
+  image?: string | null // Changed from string | undefined to string | null
   created_at?: string
   updated_at?: string
 }
@@ -31,7 +32,7 @@ interface ValidationErrors {
   notes?: string
 }
 
-interface User {
+interface AppUser {
   id: number
   name: string
   email: string
@@ -44,7 +45,7 @@ interface User {
 
 const BookingComponent: React.FC<{
   onProceedToConfirm: (bookingData: BookingData, selectedService: Service) => void
-  user: User
+  user: AppUser
   token: string
   onLogout: () => void
   preSelectedService?: Service | null
@@ -61,6 +62,21 @@ const BookingComponent: React.FC<{
   const [apiError, setApiError] = useState<string>("")
 
   const API_BASE_URL = "http://127.0.0.1:8000/api"
+
+  // Helper function to get image URL
+  const getImageUrl = (imagePath: string | null | undefined) => {
+    if (!imagePath) return "/placeholder.svg?height=60&width=60"
+    // If it's already a full URL (starts with http:// or https://), return as is
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath
+    }
+    // If it starts with 'services/' (Laravel storage path), prepend the storage URL
+    if (imagePath.startsWith("services/")) {
+      return `http://127.0.0.1:8000/storage/${imagePath}`
+    }
+    // If it's just a filename or other relative path, assume it's in storage/services
+    return `http://127.0.0.1:8000/storage/services/${imagePath}`
+  }
 
   // Fetch services from YOUR API
   useEffect(() => {
@@ -210,9 +226,13 @@ const BookingComponent: React.FC<{
         <div className="bg-gradient-to-r from-green-50 to-blue-50 border-b border-green-200 p-6">
           <div className="flex items-center space-x-4">
             <img
-              src={preSelectedService.image || "/placeholder.svg?height=60&width=60"}
+              src={getImageUrl(preSelectedService.image) || "/placeholder.svg"}
               alt={preSelectedService.name}
               className="w-16 h-16 rounded-lg object-cover border-2 border-white shadow-md"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.src = "/placeholder.svg?height=60&width=60"
+              }}
             />
             <div>
               <h3 className="text-lg font-bold text-gray-900">{preSelectedService.name}</h3>
@@ -430,7 +450,7 @@ const BookingComponent: React.FC<{
 const ConfirmBooking: React.FC<{
   initialBooking: BookingData
   initialService: Service
-  user: User
+  user: AppUser
   token: string
   onBack: () => void
   onBookingSuccess: () => void
@@ -439,6 +459,11 @@ const ConfirmBooking: React.FC<{
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [apiError, setApiError] = useState("")
+  const [isEditing, setIsEditing] = useState(false)
+  const [services, setServices] = useState<Service[]>([])
+  const [editedBooking, setEditedBooking] = useState<BookingData>(initialBooking)
+  const [editedService, setEditedService] = useState<Service>(initialService)
+  const [errors, setErrors] = useState<ValidationErrors>({})
   const [notification, setNotification] = useState<{
     isOpen: boolean
     title: string
@@ -453,6 +478,62 @@ const ConfirmBooking: React.FC<{
 
   const API_BASE_URL = "http://127.0.0.1:8000/api"
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath: string | null | undefined) => {
+    if (!imagePath) return "/placeholder.svg?height=120&width=120"
+    // If it's already a full URL (starts with http:// or https://), return as is
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath
+    }
+    // If it starts with 'services/' (Laravel storage path), prepend the storage URL
+    if (imagePath.startsWith("services/")) {
+      return `http://127.0.0.1:8000/storage/${imagePath}`
+    }
+    // If it's just a filename or other relative path, assume it's in storage/services
+    return `http://127.0.0.1:8000/storage/services/${imagePath}`
+  }
+
+  // Fetch services for editing
+  useEffect(() => {
+    const fetchServices = async (): Promise<void> => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/services`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          setServices(result.data || result || [])
+        }
+      } catch (error) {
+        console.error("❌ Error fetching services:", error)
+      }
+    }
+
+    if (isEditing) {
+      fetchServices()
+    }
+  }, [isEditing, token])
+
+  // Generate time slots from 9 AM to 5 PM
+  const generateTimeSlots = (): string[] => {
+    const slots: string[] = []
+    for (let hour = 9; hour <= 17; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`
+        slots.push(time)
+      }
+    }
+    return slots
+  }
+
+  const timeSlots = generateTimeSlots()
+
   const showNotification = (title: string, message: string, type: "success" | "error" | "info" | "warning") => {
     setNotification({
       isOpen: true,
@@ -462,14 +543,79 @@ const ConfirmBooking: React.FC<{
     })
   }
 
+  const handleEditInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ): void => {
+    const { name, value } = e.target
+    setEditedBooking((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+
+    // Update selected service when service_id changes
+    if (name === "service_id") {
+      const selectedService = services.find((s) => s.id === Number.parseInt(value, 10))
+      if (selectedService) {
+        setEditedService(selectedService)
+      }
+    }
+
+    if (errors[name as keyof ValidationErrors]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }))
+    }
+  }
+
+  const validateEditForm = (): boolean => {
+    const newErrors: ValidationErrors = {}
+
+    if (!editedBooking.service_id) {
+      newErrors.service_id = "Please select a service"
+    }
+
+    if (!editedBooking.booking_date) {
+      newErrors.booking_date = "Please select a date"
+    } else {
+      const selectedDate = new Date(editedBooking.booking_date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (selectedDate < today) {
+        newErrors.booking_date = "Please select a future date"
+      }
+    }
+
+    if (!editedBooking.booking_time) {
+      newErrors.booking_time = "Please select a time"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSaveEdit = () => {
+    if (validateEditForm()) {
+      setIsEditing(false)
+      showNotification("Changes Saved", "Your booking details have been updated", "success")
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditedBooking(initialBooking)
+    setEditedService(initialService)
+    setErrors({})
+    setIsEditing(false)
+  }
+
   const handleConfirmBooking = async (): Promise<void> => {
     setIsSubmitting(true)
     setApiError("")
 
     try {
       const payload = {
-        ...initialBooking,
-        service_id: Number.parseInt(initialBooking.service_id, 10),
+        ...editedBooking,
+        service_id: Number.parseInt(editedBooking.service_id, 10),
       }
 
       console.log("📤 Sending authenticated booking:", payload)
@@ -514,6 +660,8 @@ const ConfirmBooking: React.FC<{
     }
   }
 
+  const today: string = new Date().toISOString().split("T")[0]
+
   if (isSuccess) {
     return (
       <>
@@ -532,17 +680,17 @@ const ConfirmBooking: React.FC<{
                   <strong>Customer:</strong> {user.name}
                 </p>
                 <p>
-                  <strong>Service:</strong> {initialService.name}
+                  <strong>Service:</strong> {editedService.name}
                 </p>
                 <p>
-                  <strong>Date:</strong> {new Date(initialBooking.booking_date).toLocaleDateString()}
+                  <strong>Date:</strong> {new Date(editedBooking.booking_date).toLocaleDateString()}
                 </p>
                 <p>
-                  <strong>Time:</strong> {initialBooking.booking_time}
+                  <strong>Time:</strong> {editedBooking.booking_time}
                 </p>
-                {initialService.price && (
+                {editedService.price && (
                   <p>
-                    <strong>Amount:</strong> ${initialService.price}
+                    <strong>Amount:</strong> ${editedService.price}
                   </p>
                 )}
               </div>
@@ -592,8 +740,21 @@ const ConfirmBooking: React.FC<{
     <>
       <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         <div className="bg-gradient-to-r from-green-600 to-blue-600 px-6 py-4">
-          <h2 className="text-xl font-bold text-white">Confirm Your Booking</h2>
-          <p className="text-green-100 text-sm">Review and confirm your appointment details</p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold text-white">Confirm Your Booking</h2>
+              <p className="text-green-100 text-sm">Review and confirm your appointment details</p>
+            </div>
+            {!isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-2 px-3 py-1 bg-white/20 rounded-lg text-white hover:bg-white/30 transition-colors"
+              >
+                <Edit3 size={16} />
+                <span className="text-sm">Edit</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="p-6 space-y-6">
@@ -605,84 +766,262 @@ const ConfirmBooking: React.FC<{
             </div>
           )}
 
-          <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-            <h3 className="font-semibold text-gray-900 text-lg mb-4">Appointment Details</h3>
-
-            <div className="grid grid-cols-1 gap-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Customer:</span>
-                <span className="font-medium text-gray-900">{user.name}</span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Service:</span>
-                <span className="font-medium text-gray-900">{initialService.name}</span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Date:</span>
-                <span className="font-medium text-gray-900">
-                  {new Date(initialBooking.booking_date).toLocaleDateString()}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Time:</span>
-                <span className="font-medium text-gray-900">{initialBooking.booking_time}</span>
-              </div>
-
-              {initialService.price && (
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Amount:</span>
-                  <span className="font-medium text-green-600">${initialService.price}</span>
+          {/* Service Image and Details */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 border border-blue-200">
+            <div className="flex items-start space-x-4">
+              <img
+                src={getImageUrl(editedService.image) || "/placeholder.svg"}
+                alt={editedService.name}
+                className="w-24 h-24 rounded-lg object-cover border-2 border-white shadow-md flex-shrink-0"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.src = "/placeholder.svg?height=120&width=120"
+                }}
+              />
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{editedService.name}</h3>
+                <p className="text-gray-600 text-sm mb-3">{editedService.description}</p>
+                <div className="flex items-center space-x-4">
+                  {editedService.price && (
+                    <div className="flex items-center gap-1">
+                      <DollarSign size={16} className="text-green-600" />
+                      <span className="text-lg font-semibold text-green-600">${editedService.price}</span>
+                    </div>
+                  )}
+                  {editedService.duration && (
+                    <div className="flex items-center gap-1">
+                      <Clock size={16} className="text-blue-600" />
+                      <span className="text-sm text-gray-600">{editedService.duration} minutes</span>
+                    </div>
+                  )}
+                  {editedService.category && (
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                      {editedService.category}
+                    </span>
+                  )}
                 </div>
-              )}
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Payment:</span>
-                <span className="font-medium text-orange-600">Cash on Arrival</span>
               </div>
-
-              {initialBooking.notes && (
-                <div className="pt-2 border-t border-gray-200">
-                  <span className="text-sm text-gray-600 block mb-1">Notes:</span>
-                  <span className="text-sm text-gray-900">{initialBooking.notes}</span>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Add payment notice */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="text-sm text-yellow-800">
-              <strong>💡 Payment Notice:</strong> Payment will be collected in cash when you arrive for your service.
-              Your booking status will show as "Payment Pending" until payment is received.
+          {isEditing ? (
+            /* Edit Mode */
+            <div className="space-y-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Edit3 size={16} className="text-yellow-600" />
+                  <h3 className="font-semibold text-yellow-800">Edit Booking Details</h3>
+                </div>
+                <p className="text-sm text-yellow-700">Make changes to your booking below</p>
+              </div>
+
+              {/* Service Selection */}
+              <div>
+                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                  <span className="w-4 h-4 mr-2 text-gray-500">🛎️</span>
+                  Service
+                </label>
+                <select
+                  name="service_id"
+                  value={editedBooking.service_id}
+                  onChange={handleEditInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                    errors.service_id ? "border-red-300 bg-red-50" : "border-gray-300 bg-gray-50"
+                  }`}
+                >
+                  <option value="">Choose service...</option>
+                  {services.map((service: Service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}
+                      {service.duration && ` (${service.duration} min)`}
+                      {service.price && ` - $${service.price}`}
+                    </option>
+                  ))}
+                </select>
+                {errors.service_id && <p className="mt-1 text-xs text-red-600">{errors.service_id}</p>}
+              </div>
+
+              {/* Date and Time */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                    <Calendar size={16} className="mr-2 text-gray-500" />
+                    Service Date
+                  </label>
+                  <input
+                    type="date"
+                    name="booking_date"
+                    value={editedBooking.booking_date}
+                    onChange={handleEditInputChange}
+                    min={today}
+                    className={`w-full px-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                      errors.booking_date ? "border-red-300 bg-red-50" : "border-gray-300 bg-gray-50"
+                    }`}
+                  />
+                  {errors.booking_date && <p className="mt-1 text-xs text-red-600">{errors.booking_date}</p>}
+                </div>
+
+                <div>
+                  <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                    <Clock size={16} className="mr-2 text-gray-500" />
+                    Preferred Time
+                  </label>
+                  <select
+                    name="booking_time"
+                    value={editedBooking.booking_time}
+                    onChange={handleEditInputChange}
+                    className={`w-full px-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                      errors.booking_time ? "border-red-300 bg-red-50" : "border-gray-300 bg-gray-50"
+                    }`}
+                  >
+                    <option value="">Choose time...</option>
+                    {timeSlots.map((time: string) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.booking_time && <p className="mt-1 text-xs text-red-600">{errors.booking_time}</p>}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                  <FileText size={16} className="mr-2 text-gray-500" />
+                  Special Requests (Optional)
+                </label>
+                <textarea
+                  name="notes"
+                  value={editedBooking.notes}
+                  onChange={handleEditInputChange}
+                  placeholder="Any special requests or notes for your service..."
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-colors resize-none"
+                />
+              </div>
+
+              {/* Edit Actions */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleCancelEdit}
+                  className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            /* View Mode */
+            <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+              <h3 className="font-semibold text-gray-900 text-lg mb-4">Appointment Details</h3>
 
-          <div className="flex space-x-3">
-            <button
-              onClick={onBack}
-              className="bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
-            >
-              ← Back
-            </button>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UserIcon size={16} className="text-gray-500" />
+                    <span className="text-sm text-gray-600">Customer:</span>
+                  </div>
+                  <span className="font-medium text-gray-900">{user.name}</span>
+                </div>
 
-            <button
-              onClick={handleConfirmBooking}
-              disabled={isSubmitting}
-              className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <span className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Confirming...
-                </span>
-              ) : (
-                "Confirm Booking (Pay Cash on Arrival)"
-              )}
-            </button>
-          </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Service:</span>
+                  </div>
+                  <span className="font-medium text-gray-900">{editedService.name}</span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={16} className="text-gray-500" />
+                    <span className="text-sm text-gray-600">Date:</span>
+                  </div>
+                  <span className="font-medium text-gray-900">
+                    {new Date(editedBooking.booking_date).toLocaleDateString()}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock size={16} className="text-gray-500" />
+                    <span className="text-sm text-gray-600">Time:</span>
+                  </div>
+                  <span className="font-medium text-gray-900">{editedBooking.booking_time}</span>
+                </div>
+
+                {editedService.price && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <DollarSign size={16} className="text-gray-500" />
+                      <span className="text-sm text-gray-600">Amount:</span>
+                    </div>
+                    <span className="font-medium text-green-600">${editedService.price}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Payment:</span>
+                  <span className="font-medium text-orange-600">Cash on Arrival</span>
+                </div>
+
+                {editedBooking.notes && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <div className="flex items-start gap-2">
+                      <FileText size={16} className="text-gray-500 mt-0.5" />
+                      <div>
+                        <span className="text-sm text-gray-600 block mb-1">Notes:</span>
+                        <span className="text-sm text-gray-900">{editedBooking.notes}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!isEditing && (
+            <>
+              {/* Add payment notice */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="text-sm text-yellow-800">
+                  <strong>💡 Payment Notice:</strong> Payment will be collected in cash when you arrive for your
+                  service. Your booking status will show as "Payment Pending" until payment is received.
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={onBack}
+                  className="flex items-center gap-2 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                >
+                  <ArrowLeft size={16} />
+                  Back
+                </button>
+
+                <button
+                  onClick={handleConfirmBooking}
+                  disabled={isSubmitting}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Confirming...
+                    </span>
+                  ) : (
+                    "Confirm Booking (Pay Cash on Arrival)"
+                  )}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -702,7 +1041,7 @@ export default function BookingApp() {
   const [currentStep, setCurrentStep] = useState<"booking" | "confirm">("booking")
   const [bookingData, setBookingData] = useState<BookingData | null>(null)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AppUser | null>(null)
   const [token, setToken] = useState("")
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [authError, setAuthError] = useState("")

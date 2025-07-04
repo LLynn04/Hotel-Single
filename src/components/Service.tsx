@@ -22,11 +22,29 @@ const Service: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const navigate = useNavigate()
 
+  // Helper function to get proper image URL
+  const getImageUrl = (imagePath: string | null) => {
+    if (!imagePath) return null
+
+    // If it's already a full URL (starts with http:// or https://), return as is
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath
+    }
+
+    // If it starts with 'services/' (Laravel storage path), prepend the storage URL
+    if (imagePath.startsWith("services/")) {
+      return `http://127.0.0.1:8000/storage/${imagePath}`
+    }
+
+    // If it's just a filename or other relative path, assume it's in storage/services
+    return `http://127.0.0.1:8000/storage/services/${imagePath}`
+  }
+
   useEffect(() => {
     const fetchServices = async () => {
       try {
         const token = localStorage.getItem("token")
-        const res = await fetch("http://localhost:8000/api/services", {
+        const res = await fetch("http://127.0.0.1:8000/api/services", {
           headers: {
             Authorization: `Bearer ${token}`,
             Accept: "application/json",
@@ -162,9 +180,13 @@ const Service: React.FC = () => {
                 <div className="relative h-56 bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 overflow-hidden">
                   {service.image ? (
                     <img
-                      src={service.image || "/placeholder.svg"}
+                      src={getImageUrl(service.image) || "/placeholder.svg?height=224&width=400"}
                       alt={service.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.src = "/placeholder.svg?height=224&width=400"
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
