@@ -124,7 +124,7 @@ const VerifyNotice = () => {
 
           <div className="bg-blue-50 bg-opacity-20 rounded-lg p-4 mb-6">
             <p className="text-sm text-blue-200 text-center">
-              ⏱️ This page will automatically redirect you after verification
+              ⏱️ After Verify, You can back to login page and sign in with your account.
             </p>
           </div>
 

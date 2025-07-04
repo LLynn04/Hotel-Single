@@ -112,6 +112,7 @@ const AdminServiceCRUD: React.FC = () => {
     serviceName: "",
   })
 
+
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
@@ -234,6 +235,7 @@ const AdminServiceCRUD: React.FC = () => {
         formDataObj.append("category", formData.category)
         formDataObj.append("is_active", formData.is_active ? "1" : "0")
         formDataObj.append("image", selectedFile)
+
 
         // For PUT requests, Laravel needs _method field
         if (isEdit) {
@@ -371,6 +373,7 @@ const AdminServiceCRUD: React.FC = () => {
       return `http://127.0.0.1:8000/storage/${imagePath}`
     }
 
+
     // If it's just a filename or other relative path, assume it's in storage/services
     return `http://127.0.0.1:8000/storage/services/${imagePath}`
   }
@@ -452,6 +455,7 @@ const AdminServiceCRUD: React.FC = () => {
           </div>
         </div>
       </div>
+
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {error && (
@@ -536,6 +540,7 @@ const AdminServiceCRUD: React.FC = () => {
                     )}
                   </div>
 
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Price ($) *</label>
                     <input
@@ -606,6 +611,7 @@ const AdminServiceCRUD: React.FC = () => {
                     <span>OR</span>
                   </div>
 
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Image URL</label>
                     <input
@@ -668,6 +674,7 @@ const AdminServiceCRUD: React.FC = () => {
             </div>
           </div>
         )}
+
 
         {/* Services Table */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -744,6 +751,7 @@ const AdminServiceCRUD: React.FC = () => {
                       </button>
                       <button
                         onClick={() => showDeleteModal(service)}
+
                         className="text-red-600 hover:text-red-900 font-medium"
                       >
                         Delete
