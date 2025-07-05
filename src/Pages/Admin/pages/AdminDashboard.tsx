@@ -85,6 +85,7 @@ interface DashboardStats {
   totalBookings: number
   pendingBookings: number
   approvedBookings: number
+  completedBookings: number
   pendingPayments: number
 }
 
@@ -95,6 +96,7 @@ const AdminDashboard = () => {
     totalBookings: 0,
     pendingBookings: 0,
     approvedBookings: 0,
+    completedBookings: 0,
     pendingPayments: 0,
   })
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -131,7 +133,7 @@ const AdminDashboard = () => {
   const [adminNotesModal, setAdminNotesModal] = useState<{
     isOpen: boolean
     bookingId: number | null
-    action: "approve" | "reject" | null
+    action: "approve" | "reject" | "complete" | null
     booking: Booking | null
   }>({
     isOpen: false,
@@ -227,6 +229,7 @@ const AdminDashboard = () => {
         // Calculate stats
         const pendingBookings = fetchedBookings.filter((b) => b.status === "pending").length
         const approvedBookings = fetchedBookings.filter((b) => b.status === "approved").length
+        const completedBookings = fetchedBookings.filter((b) => b.status === "completed").length
         const pendingPayments = fetchedBookings.filter((b) => b.payment_status === "pending").length
 
         setStats({
@@ -235,6 +238,7 @@ const AdminDashboard = () => {
           totalBookings: totalBookingsCount,
           pendingBookings,
           approvedBookings,
+          completedBookings,
           pendingPayments,
         })
       } catch (err) {
@@ -248,7 +252,7 @@ const AdminDashboard = () => {
     fetchDashboardData()
   }, [])
 
-  const showAdminNotesModal = (bookingId: number, action: "approve" | "reject") => {
+  const showAdminNotesModal = (bookingId: number, action: "approve" | "reject" | "complete") => {
     const booking = bookings.find((b) => b.id === bookingId)
     setAdminNotesModal({
       isOpen: true,
@@ -260,7 +264,6 @@ const AdminDashboard = () => {
 
   const updateBookingStatus = async (bookingId: number, status: "approved" | "rejected", adminNotes?: string) => {
     const action = status === "approved" ? "approve" : "reject"
-    // const booking = bookings.find((b) => b.id === bookingId)
 
     try {
       setProcessingBooking(bookingId)
@@ -279,6 +282,7 @@ const AdminDashboard = () => {
       })
 
       const data = await response.json()
+
       if (response.ok) {
         // Update local state with admin notes
         setBookings((prev) =>
@@ -313,9 +317,64 @@ const AdminDashboard = () => {
     }
   }
 
+  const completeBooking = async (bookingId: number, adminNotes?: string) => {
+    try {
+      setProcessingBooking(bookingId)
+      const token = getAuthToken()
+      const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/complete`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          admin_notes: adminNotes || "Service completed successfully",
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Update local state
+        setBookings((prev) =>
+          prev.map((booking) =>
+            booking.id === bookingId
+              ? {
+                  ...booking,
+                  status: "completed" as const,
+                  admin_notes: adminNotes || "Service completed successfully",
+                }
+              : booking,
+          ),
+        )
+
+        // Update stats
+        setStats((prev) => ({
+          ...prev,
+          approvedBookings: prev.approvedBookings - 1,
+          completedBookings: prev.completedBookings + 1,
+        }))
+
+        // Show success notification
+        showNotification("Booking Completed!", "The booking has been marked as completed successfully!", "success")
+        console.log(`✅ Booking ${bookingId} completed`)
+      } else {
+        console.error("Failed to complete booking:", data.message)
+        showNotification("Error", `Failed to complete booking: ${data.message}`, "error")
+        setError("Failed to complete booking")
+      }
+    } catch (err) {
+      console.error("Error completing booking:", err)
+      showNotification("Network Error", "Network error occurred while completing booking", "error")
+      setError("Network error occurred")
+    } finally {
+      setProcessingBooking(null)
+    }
+  }
+
   const markPaymentReceived = async (bookingId: number, amount: string) => {
     const booking = bookings.find((b) => b.id === bookingId)
-
     showConfirmModal(
       "Mark Payment Received",
       `Are you sure you want to mark the payment of $${amount} for "${booking?.service.name}" as received?`,
@@ -337,6 +396,7 @@ const AdminDashboard = () => {
           })
 
           const data = await response.json()
+
           if (response.ok) {
             // Update local state
             setBookings((prev) =>
@@ -410,7 +470,7 @@ const AdminDashboard = () => {
     <>
       <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -422,7 +482,6 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-green-100 rounded-lg">
@@ -434,7 +493,6 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-purple-100 rounded-lg">
@@ -446,7 +504,6 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-yellow-100 rounded-lg">
@@ -458,7 +515,6 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-green-100 rounded-lg">
@@ -470,7 +526,17 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-
+          <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <span className="text-blue-600 text-xl">🎉</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Completed</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.completedBookings}</p>
+              </div>
+            </div>
+          </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-orange-100 rounded-lg">
@@ -488,7 +554,7 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">Booking Management</h2>
-            <p className="text-sm text-gray-600 mt-1">Approve, reject, and manage payments for bookings</p>
+            <p className="text-sm text-gray-600 mt-1">Approve, reject, complete, and manage payments for bookings</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -548,9 +614,11 @@ const AdminDashboard = () => {
                             ? "bg-yellow-100 text-yellow-800"
                             : booking.status === "approved"
                               ? "bg-green-100 text-green-800"
-                              : booking.status === "rejected"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-gray-100 text-gray-800"
+                              : booking.status === "completed"
+                                ? "bg-blue-100 text-blue-800"
+                                : booking.status === "rejected"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {booking.status}
@@ -569,6 +637,7 @@ const AdminDashboard = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex space-x-2">
+                        {/* Pending bookings - Show Approve/Reject */}
                         {booking.status === "pending" && (
                           <>
                             <button
@@ -601,21 +670,51 @@ const AdminDashboard = () => {
                             </button>
                           </>
                         )}
-                        {booking.status === "approved" && booking.payment_status === "pending" && (
-                          <button
-                            onClick={() => markPaymentReceived(booking.id, booking.total_amount)}
-                            disabled={processingBooking === booking.id}
-                            className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            {processingBooking === booking.id ? (
-                              <div className="flex items-center">
-                                <div className="animate-spin rounded-full h-3 w-3 border-b border-white mr-1"></div>
-                                Loading
-                              </div>
-                            ) : (
-                              "Mark Paid"
+
+                        {/* Approved bookings - Show Mark Paid and Complete */}
+                        {booking.status === "approved" && (
+                          <>
+                            {booking.payment_status === "pending" && (
+                              <button
+                                onClick={() => markPaymentReceived(booking.id, booking.total_amount)}
+                                disabled={processingBooking === booking.id}
+                                className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {processingBooking === booking.id ? (
+                                  <div className="flex items-center">
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b border-white mr-1"></div>
+                                    Loading
+                                  </div>
+                                ) : (
+                                  "Mark Paid"
+                                )}
+                              </button>
                             )}
-                          </button>
+                            <button
+                              onClick={() => showAdminNotesModal(booking.id, "complete")}
+                              disabled={processingBooking === booking.id}
+                              className="bg-purple-600 text-white px-3 py-1 rounded text-xs hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {processingBooking === booking.id ? (
+                                <div className="flex items-center">
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b border-white mr-1"></div>
+                                  Loading
+                                </div>
+                              ) : (
+                                "Complete"
+                              )}
+                            </button>
+                          </>
+                        )}
+
+                        {/* Completed bookings - Show status only */}
+                        {booking.status === "completed" && (
+                          <span className="text-blue-600 text-xs font-medium">Service Completed</span>
+                        )}
+
+                        {/* Rejected bookings - Show status only */}
+                        {booking.status === "rejected" && (
+                          <span className="text-red-600 text-xs font-medium">Booking Rejected</span>
                         )}
                       </div>
                     </td>
@@ -661,31 +760,49 @@ const AdminDashboard = () => {
               <div className="flex items-center mb-4">
                 <div
                   className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${
-                    adminNotesModal.action === "approve" ? "bg-green-100" : "bg-red-100"
+                    adminNotesModal.action === "approve"
+                      ? "bg-green-100"
+                      : adminNotesModal.action === "reject"
+                        ? "bg-red-100"
+                        : "bg-purple-100"
                   }`}
                 >
-                  <span className="text-2xl">{adminNotesModal.action === "approve" ? "✅" : "❌"}</span>
+                  <span className="text-2xl">
+                    {adminNotesModal.action === "approve" ? "✅" : adminNotesModal.action === "reject" ? "❌" : "🎉"}
+                  </span>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {adminNotesModal.action === "approve" ? "Approve" : "Reject"} Booking
+                    {adminNotesModal.action === "approve"
+                      ? "Approve"
+                      : adminNotesModal.action === "reject"
+                        ? "Reject"
+                        : "Complete"}{" "}
+                    Booking
                   </h3>
                   <p className="text-sm text-gray-600">
                     {adminNotesModal.booking.service.name} - {adminNotesModal.booking.user.name}
                   </p>
                 </div>
               </div>
-
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Admin Notes (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Admin Notes {adminNotesModal.action === "complete" ? "(Required)" : "(Optional)"}
+                </label>
                 <textarea
                   id="adminNotes"
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                  placeholder={`Add a note about why you ${adminNotesModal.action === "approve" ? "approved" : "rejected"} this booking...`}
+                  placeholder={
+                    adminNotesModal.action === "approve"
+                      ? "Add a note about why you approved this booking..."
+                      : adminNotesModal.action === "reject"
+                        ? "Add a note about why you rejected this booking..."
+                        : "Describe how the service was completed (e.g., 'House cleaning service completed successfully. Customer was satisfied.')"
+                  }
+                  required={adminNotesModal.action === "complete"}
                 />
               </div>
-
               <div className="bg-gray-50 rounded-lg p-3 mb-4">
                 <h4 className="text-sm font-medium text-gray-900 mb-2">Booking Details:</h4>
                 <div className="text-xs text-gray-600 space-y-1">
@@ -711,7 +828,6 @@ const AdminDashboard = () => {
                   )}
                 </div>
               </div>
-
               <div className="flex space-x-3 justify-end">
                 <button
                   onClick={() => setAdminNotesModal({ isOpen: false, bookingId: null, action: null, booking: null })}
@@ -722,17 +838,33 @@ const AdminDashboard = () => {
                 <button
                   onClick={() => {
                     const adminNotes = (document.getElementById("adminNotes") as HTMLTextAreaElement)?.value || ""
-                    const status = adminNotesModal.action === "approve" ? "approved" : "rejected"
-                    updateBookingStatus(adminNotesModal.bookingId!, status as "approved" | "rejected", adminNotes)
+
+                    if (adminNotesModal.action === "complete") {
+                      if (!adminNotes.trim()) {
+                        showNotification("Error", "Admin notes are required when completing a booking", "error")
+                        return
+                      }
+                      completeBooking(adminNotesModal.bookingId!, adminNotes)
+                    } else {
+                      const status = adminNotesModal.action === "approve" ? "approved" : "rejected"
+                      updateBookingStatus(adminNotesModal.bookingId!, status as "approved" | "rejected", adminNotes)
+                    }
+
                     setAdminNotesModal({ isOpen: false, bookingId: null, action: null, booking: null })
                   }}
                   className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
                     adminNotesModal.action === "approve"
                       ? "bg-green-600 hover:bg-green-700 focus:ring-green-500"
-                      : "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+                      : adminNotesModal.action === "reject"
+                        ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+                        : "bg-purple-600 hover:bg-purple-700 focus:ring-purple-500"
                   }`}
                 >
-                  {adminNotesModal.action === "approve" ? "Approve Booking" : "Reject Booking"}
+                  {adminNotesModal.action === "approve"
+                    ? "Approve Booking"
+                    : adminNotesModal.action === "reject"
+                      ? "Reject Booking"
+                      : "Complete Booking"}
                 </button>
               </div>
             </div>
